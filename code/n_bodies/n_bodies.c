@@ -3,14 +3,19 @@
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
-#define G 1 // gravitational constant
-#define DT 0.001  // time step
-#define N_ITER 100000
-#define N_BODIES 10
-#define EPSILON 1
+#define G 1                         // gravitational contant
+#define DT 0.001                    // time derivative
+#define N_ITER 10000        
+#define N_BODIES 100
+#define EPSILON 1                   // epsilon to avoid division by 0
+#define LOG_FILE "output.txt"       // logfile location
 
 struct timeval  tv1, tv2;
+struct winsize w;
 
 typedef struct {
     double mass;
@@ -33,7 +38,7 @@ Body **generate_initial_population(int n, double max_mass, double max_pos, doubl
     srand(42);
     for(int i = 0; i < n; i++) {
         bodies[i] = malloc(sizeof(Body));
-        bodies[i]->mass = 20;
+        bodies[i]->mass = (double)rand() / RAND_MAX * max_mass;
         bodies[i]->x = (double)rand() / RAND_MAX * max_pos;
         bodies[i]->y = (double)rand() / RAND_MAX * max_pos;
         bodies[i]->z = (double)rand() / RAND_MAX * max_pos;
@@ -50,11 +55,10 @@ Body **generate_initial_population(int n, double max_mass, double max_pos, doubl
     return bodies;
 }
 
-void print_boddies(Body **bodies, int n, int iteration) {
-    //if (iteration == 0)
-    //    printf("iteration,mass,x,y,z,vx,vy,vz\n");
-    for(int i = 0; i < n; i++) 
-        printf("%d,%f,%f,%f,%f,%f,%f,%f\n", iteration, bodies[i]->mass, bodies[i]->x, bodies[i]->y, bodies[i]->z, bodies[i]->vx, bodies[i]->vy, bodies[i]->vz);
+void print_boddies(Body **bodies, int n, int iteration, FILE *logfile) {
+    for(int i = 0; i < n; i++) {
+        fprintf(logfile,"%d,%f,%f,%f,%f,%f,%f,%f\n", iteration, bodies[i]->mass, bodies[i]->x, bodies[i]->y, bodies[i]->z, bodies[i]->vx, bodies[i]->vy, bodies[i]->vz);
+    }
 }
 
 Body **calculate_iteration(Body** bodies, int num_bodies) {
@@ -97,18 +101,52 @@ Body **calculate_iteration(Body** bodies, int num_bodies) {
     return new_bodies;
 }
 
+void progress_bar(int current, int max) {
+    int i;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    int width = w.ws_col;
+    float progress = (float)current / (float)max; // Calculate progress as a fraction
+    int chars_printed = (int)(progress * width); // Calculate number of characters to print
+    for (i = 0; i < chars_printed; i++) {
+        printf("=");
+    }
+    printf("\r");
+    fflush(stdout);
+}
+
 int main() {
     Body **bodies;
-    bodies = generate_initial_population(N_BODIES, 100000000, 3, 3);
+    printf("Generating initial population\n");
+    fflush(stdout);
+    FILE *fp;
+    fp = fopen("./data.txt", "wa");
+    printf("Generating initial population\n");
+    fflush(stdout);
+
+    if (fp == NULL) {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+    bodies = generate_initial_population(N_BODIES, 30, 3, 3);
+
     gettimeofday(&tv1, NULL);
+
     for(int i = 0; i < N_ITER; i ++) {
-        print_boddies(bodies,N_BODIES, i);
+        if (i % 5 == 0) {
+            print_boddies(bodies, N_BODIES, i, fp);
+            progress_bar(i, N_ITER);
+        }
         bodies = calculate_iteration(bodies, N_BODIES);
     }
-    gettimeofday(&tv2, NULL);
-    //printf ("CPU: %f seconds\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-    //     (double) (tv2.tv_sec - tv1.tv_sec)); // Do not time for now
 
-    print_boddies(bodies,N_BODIES, N_ITER);
+    gettimeofday(&tv2, NULL);
+    printf ("CPU: %f seconds\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec)); // Do not time for now
+
+
+    print_boddies(bodies,N_BODIES, N_ITER, fp);
+
+    fclose(fp);
+
     return 0;
 }

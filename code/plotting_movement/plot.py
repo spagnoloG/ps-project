@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-DATA = np.loadtxt("out.txt", delimiter=",")
+DATA = np.loadtxt("../n_bodies/data.txt", delimiter=",")
 ranges = [np.min(DATA[:, 2:5], axis=0), np.max(DATA[:, 2:5], axis=0)]
-N = 10
+N = (DATA[:,0] == 0).sum()
 plt.figure(figsize=(8,4))
 # ax = plt.axes(projection='3d')
 
@@ -24,6 +24,4 @@ for i in range(len(DATA)//N):
 
         plt.scatter(DATA[N*i:N*(i+1), 2], DATA[N*i:N*(i+1), 3], s=20, c=col)
         plt.pause(0.00001)
-
-plt.savefig('nbody.png', dpi=240)
 plt.show()
