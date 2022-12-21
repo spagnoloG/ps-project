@@ -9,8 +9,6 @@
 
 #define G 1                         // gravitational contant
 #define DT 0.001                    // time derivative
-#define N_ITER 10000        
-#define N_BODIES 100
 #define EPSILON 1                   // epsilon to avoid division by 0
 #define LOG_FILE "output.txt"       // logfile location
 
@@ -103,50 +101,64 @@ Body **calculate_iteration(Body** bodies, int num_bodies) {
 
 void progress_bar(int current, int max) {
     int i;
+    char pb_buffer[256]; 
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     int width = w.ws_col;
     float progress = (float)current / (float)max; // Calculate progress as a fraction
     int chars_printed = (int)(progress * width); // Calculate number of characters to print
-    for (i = 0; i < chars_printed; i++) {
+                                                 //
+    sprintf(pb_buffer, "[ %d/%d ] ", current, max);
+    long pb_buf_len = strlen(pb_buffer);
+    for(int i = 0; i < pb_buf_len; i++) {
+        printf("%c", pb_buffer[i]);
+    }
+    
+    for (i = 0; i < chars_printed - pb_buf_len; i++) {
         printf("=");
     }
+
     printf("\r");
     fflush(stdout);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     Body **bodies;
-    printf("Generating initial population\n");
-    fflush(stdout);
     FILE *fp;
+    int N_BODIES, N_ITER;
+
+    if(argc != 3) {
+        printf("Usage: %s <num_bodies> <num_iterations>\n", argv[0]);
+        exit(1);
+    }
+
+    N_BODIES = atoi(argv[1]);
+    N_ITER = atoi(argv[2]);
+
     fp = fopen("./data.txt", "wa");
-    printf("Generating initial population\n");
-    fflush(stdout);
 
     if (fp == NULL) {
         printf("Error opening file!\n");
         exit(1);
     }
+
     bodies = generate_initial_population(N_BODIES, 30, 3, 3);
 
     gettimeofday(&tv1, NULL);
-
     for(int i = 0; i < N_ITER; i ++) {
-        if (i % 5 == 0) {
+        if (i % 20 == 0) {
             print_boddies(bodies, N_BODIES, i, fp);
             progress_bar(i, N_ITER);
         }
         bodies = calculate_iteration(bodies, N_BODIES);
     }
-
     gettimeofday(&tv2, NULL);
-    printf ("CPU: %f seconds\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-         (double) (tv2.tv_sec - tv1.tv_sec)); // Do not time for now
 
+    printf ("CPU: %f seconds\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec));
 
     print_boddies(bodies,N_BODIES, N_ITER, fp);
 
+    cleanup(bodies, N_BODIES);
     fclose(fp);
-
     return 0;
 }
