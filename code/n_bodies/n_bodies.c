@@ -1,3 +1,9 @@
+/*
+ * PS final projcet. Problem: n-bodies
+ * Authors: Marcel Rucigoj, Aleks Stepancic, Gasper Spagnolo
+ * FRI
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -6,6 +12,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <errno.h>
+#include <execinfo.h>
+#include <signal.h>
 
 #define G 1                         // gravitational contant
 #define DT 0.001                    // time derivative
@@ -25,17 +34,79 @@ typedef struct {
     double vz;
 } Body;
 
+/*
+ * error handling 
+ */
+void segfault_handler(int sig) {
+    void *array[10];
+    size_t size;
+
+    size = backtrace(array, 10);
+
+    fprintf(stderr, "[-] Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
+
+void throw_err(int line, int err_code) {
+    char err_buf[256];
+
+    sprintf(err_buf, "[-] Error: %s -> %d", __FILE__, line);
+    perror(err_buf);
+    exit(err_code);
+}
+
+/*
+ * misc functions
+ */
 void cleanup(Body **bodies, int num_bodies) {
     for(int i = 0; i < num_bodies; i++) {
         free(bodies[i]);
     }
 }
 
+void print_boddies(Body **bodies, int n, int iteration, FILE *logfile) {
+    for(int i = 0; i < n; i++) {
+        fprintf(logfile,"%d,%f,%f,%f,%f,%f,%f,%f\n", iteration, bodies[i]->mass, bodies[i]->x, bodies[i]->y, bodies[i]->z, bodies[i]->vx, bodies[i]->vy, bodies[i]->vz);
+    }
+}
+
+void progress_bar(int current, int max) {
+    int i;
+    char pb_buffer[256]; 
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    int width = w.ws_col;
+    float progress = (float)current / (float)max; // Calculate progress as a fraction
+    int chars_printed = (int)(progress * width); // Calculate number of characters to print
+                                                 //
+    sprintf(pb_buffer, "[ %d/%d ] ", current, max);
+    long pb_buf_len = strlen(pb_buffer);
+    for(int i = 0; i < pb_buf_len; i++) {
+        printf("%c", pb_buffer[i]);
+    }
+    
+    for (i = 0; i < chars_printed - pb_buf_len; i++) {
+        printf("=");
+    }
+
+    printf("\r");
+    fflush(stdout);
+}
+
+/*
+ * Algorithm
+ */
 Body **generate_initial_population(int n, double max_mass, double max_pos, double max_vel) {
     Body **bodies = malloc(sizeof(Body *) * n);
+    if(bodies == NULL)
+        throw_err(__LINE__, 1);
+    
     srand(42);
     for(int i = 0; i < n; i++) {
         bodies[i] = malloc(sizeof(Body));
+        if(bodies[i] == NULL)
+            throw_err(__LINE__, 1);
+
         bodies[i]->mass = (double)rand() / RAND_MAX * max_mass;
         bodies[i]->x = (double)rand() / RAND_MAX * max_pos;
         bodies[i]->y = (double)rand() / RAND_MAX * max_pos;
@@ -53,16 +124,14 @@ Body **generate_initial_population(int n, double max_mass, double max_pos, doubl
     return bodies;
 }
 
-void print_boddies(Body **bodies, int n, int iteration, FILE *logfile) {
-    for(int i = 0; i < n; i++) {
-        fprintf(logfile,"%d,%f,%f,%f,%f,%f,%f,%f\n", iteration, bodies[i]->mass, bodies[i]->x, bodies[i]->y, bodies[i]->z, bodies[i]->vx, bodies[i]->vy, bodies[i]->vz);
-    }
-}
-
 Body **calculate_iteration(Body** bodies, int num_bodies) {
     Body** new_bodies = (Body**) malloc(num_bodies * sizeof(Body*));
+    if(new_bodies == NULL)
+        throw_err(__LINE__, 1);
     for (int i = 0; i < num_bodies; i++) {
         new_bodies[i] = malloc(sizeof(Body));
+        if(new_bodies[i] == NULL)
+            throw_err(__LINE__, 1);
         double forceX = 0;
         double forceY = 0;
         double forceZ = 0;
@@ -99,27 +168,6 @@ Body **calculate_iteration(Body** bodies, int num_bodies) {
     return new_bodies;
 }
 
-void progress_bar(int current, int max) {
-    int i;
-    char pb_buffer[256]; 
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    int width = w.ws_col;
-    float progress = (float)current / (float)max; // Calculate progress as a fraction
-    int chars_printed = (int)(progress * width); // Calculate number of characters to print
-                                                 //
-    sprintf(pb_buffer, "[ %d/%d ] ", current, max);
-    long pb_buf_len = strlen(pb_buffer);
-    for(int i = 0; i < pb_buf_len; i++) {
-        printf("%c", pb_buffer[i]);
-    }
-    
-    for (i = 0; i < chars_printed - pb_buf_len; i++) {
-        printf("=");
-    }
-
-    printf("\r");
-    fflush(stdout);
-}
 
 int main(int argc, char *argv[]) {
     Body **bodies;
@@ -136,10 +184,8 @@ int main(int argc, char *argv[]) {
 
     fp = fopen("./data.txt", "wa");
 
-    if (fp == NULL) {
-        printf("Error opening file!\n");
-        exit(1);
-    }
+    if (fp == NULL)
+        throw_err(__LINE__, errno);
 
     bodies = generate_initial_population(N_BODIES, 30, 3, 3);
 
