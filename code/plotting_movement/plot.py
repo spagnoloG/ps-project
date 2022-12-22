@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-DATA = np.loadtxt("../n_bodies/data.txt", delimiter=",")
+DATA = np.loadtxt("../n_bodies/output_pthread.txt", delimiter=",")
 ranges = [np.min(DATA[:, 2:5], axis=0), np.max(DATA[:, 2:5], axis=0)]
 N = (DATA[:,0] == 0).sum()
 plt.figure(figsize=(8,4))
