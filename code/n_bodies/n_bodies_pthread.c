@@ -184,7 +184,6 @@ Body **calculate_iteration(Body** bodies, int num_bodies, int start, int end) {
 
 void *parallel_iteration(void *arg) {
     ThreadArgs *args = (ThreadArgs *) arg;
-    //Body **new_bodies = calculate_iteration(args->bodies, args->n_bodies, args->start, args->end);
     Body **new_bodies = calculate_iteration(args->bodies, args->n_bodies, args->start, args->end);
     args->bodies = new_bodies;
     pthread_exit((void*) args); 
@@ -226,7 +225,7 @@ int main(int argc, char *argv[]) {
     gettimeofday(&tv1, NULL);
     for(int i = 0; i < N_ITER; i ++) {
         
-        if(i % 10 == 0) {
+        if(i % 100 == 0) {
             print_boddies(bodies, N_BODIES, i, fp);
             progress_bar(i, N_ITER);
         }
@@ -246,18 +245,20 @@ int main(int argc, char *argv[]) {
                memcpy(&thread_args[args->tid], args, sizeof(ThreadArgs));
             }
         }
+        cleanup(bodies, N_BODIES); // fix the memory leak
 
         // Join bodies arrays
-        for(int j = 0; j < N_THREADS; j++) {
+        for(int j = 0; j < N_THREADS; j++)
             for(int k = thread_args[j].start; k < thread_args[j].end; k++)
                 bodies[k] = thread_args[j].bodies[k - thread_args[j].start]; 
+        
+        
+        // Update bodies array for every thread
+        for(int j = 0; j < N_THREADS; j++) {
+            free(thread_args[j].bodies);
+            thread_args[j].bodies = bodies;
         }
 
-        // Update bodies array for every thread
-        for(int j = 0; j < N_THREADS; j++)
-            thread_args[j].bodies = bodies;
-        
-        
     }
     gettimeofday(&tv2, NULL);
 
