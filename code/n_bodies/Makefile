@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-g -Wall -lm
-PTHREAD_CFLAGS=-pthread
+PTHREAD_CFLAGS=-pthread -ffast-math -O3 -march=native
 MAIN=n_bodies
 MAIN_PTHREAD=n_bodies_pthread
 
@@ -10,7 +10,7 @@ $(MAIN): $(MAIN).c
 	$(CC) $(CFLAGS) $(MAIN).c -o $(MAIN).o
 
 $(MAIN_PTHREAD): $(MAIN_PTHREAD).c
-	$(CC) $(CFLAGS) -pthread $(MAIN_PTHREAD).c -o $(MAIN_PTHREAD).o
+	$(CC) $(CFLAGS) $(PTHREAD_CFLAGS) $(MAIN_PTHREAD).c -o $(MAIN_PTHREAD).o
 
 clean: 
 	rm $(MAIN).o $(MAIN_PTHREAD).o
