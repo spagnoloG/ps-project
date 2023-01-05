@@ -4,7 +4,7 @@ CFLAGS=-g -Wall -lm
 MPI_FLAGS=-fopenmp
 PTHREAD_CFLAGS=-pthread -ffast-math -O3 -march=native
 MAIN=n_bodies
-MAIN_PTHREAD=n_bodies_pthread1
+MAIN_PTHREAD=n_bodies_pthread2
 MAIN_MPI=n_bodies_mpi
 USERNAME=$(shell ssh nsc "whoami")
 DESTINATION=/ceph/grid/home/$(USERNAME)/n_bodies
@@ -27,10 +27,17 @@ clean:
 	@test -f $(MAIN_MPI).o && rm $(MAIN_MPI).o || true
 
 run_local_main:
-	./$(MAIN).o
+	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
+	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
+
+	./$(MAIN).o $(n_bodies) $(n_steps)
 
 run_local_main_pthread:
-	./$(MAIN_PTHREAD).o
+	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
+	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
+	@test -n "$(n_threads)" || (echo "n_threads is not set"; exit 1)
+
+	./$(MAIN_PTHREAD).o $(n_bodies) $(n_steps) $(n_threads)
 
 run_pthread_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
@@ -50,7 +57,7 @@ run_pthread_remote:
 	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --cpus-per-task=$(n_threads) --mem-per-cpu=10G ./$(MAIN_PTHREAD).o $(n_bodies) $(n_steps) $(n_threads)"
 	
 	@echo "Copying results back to local machine"
-	rsync -a --progress nsc:"$(DESTINATION)/output_pthread.txt" ./output_pthread.txt
+	rsync -a --progress nsc:"$(DESTINATION)/output_pthread2.txt" ./output_pthread2.txt
 
 
 run_mpi_remote:
@@ -70,3 +77,6 @@ run_mpi_remote:
 	@echo "Compiling and running on nsc"
 	ssh nsc 'cd $(DESTINATION); make clean;module load OpenMPI/4.1.0-GCC-10.2.0; make compile_mpi n_threads=$(n_threads);'
 	ssh nsc 'module load OpenMPI/4.1.0-GCC-10.2.0; srun --mpi=pmix --reservation=fri --ntasks=$(n_tasks) -N$(n_nodes) --cpus-per-task=$(n_cpus) $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
+
+	@echo "Copying results back to local machine"
+	rsync -a --progress nsc:"$(DESTINATION)/output_mpi.txt" ./output_mpi.txt
