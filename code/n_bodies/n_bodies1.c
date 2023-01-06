@@ -219,7 +219,6 @@ int main(int argc, char *argv[]) {
     for(int i = 0; i < N_ITER; i ++) {
         if (i % 100 == 0) {
             print_boddies(bodies, N_BODIES, i, fp);
-            progress_bar(i, N_ITER);
         }
         bodies = calculate_iteration(bodies, forces, N_BODIES);
     }

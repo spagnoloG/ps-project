@@ -227,7 +227,6 @@ int main(int argc, char *argv[]) {
         
         if(i % 100 == 0) {
             print_boddies(bodies, N_BODIES, i, fp);
-            progress_bar(i, N_ITER);
         }
 
         // Compute iteration

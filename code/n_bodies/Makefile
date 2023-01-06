@@ -1,4 +1,4 @@
-CC=gcc 
+CC=gcc
 CC_MPI=mpicc
 CFLAGS=-g -Wall -lm  -ffast-math -O3 -march=native
 MPI_FLAGS=-fopenmp
@@ -77,10 +77,10 @@ run_default_remote:
 
 	@echo "Running on nsc"
 
-	ssh nsc "cd $(DESTINATION) && srun --reservation=fri ./$(MAIN)$(version).o $(n_bodies) $(n_steps)"
+	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --time=5:0:0 ./$(MAIN)$(version).o $(n_bodies) $(n_steps)"
 	
-	@echo "Copying files from nsc"
-	rsync -a --progress nsc:$(DESTINATION)/n_bodies$(version).txt ./
+	#@echo "Copying files from nsc"
+	#rsync -a --progress nsc:$(DESTINATION)/n_bodies$(version).txt ./
 
 run_mp_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
@@ -99,7 +99,7 @@ run_mp_remote:
 	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --cpus-per-task=$(n_threads) --mem-per-cpu=10G ./$(MAIN_MP).o $(n_bodies) $(n_steps)"
 	
 	@echo "Copying the results back"
-	rsync -a --progress nsc:"$(DESTINATION)/output_mp.txt" ./
+	#rsync -a --progress nsc:"$(DESTINATION)/output_mp.txt" ./
 
 run_pthread_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
@@ -116,8 +116,8 @@ run_pthread_remote:
 	ssh nsc "cd $(DESTINATION) && make clean compile_pthread version=$(version)"
 	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --cpus-per-task=$(n_threads) --mem-per-cpu=10G ./$(MAIN_PTHREAD)$(version).o $(n_bodies) $(n_steps) $(n_threads)"
 	
-	@echo "Copying results back to local machine"
-	rsync -a --progress nsc:"$(DESTINATION)/output_pthread$(version).txt" ./
+	#@echo "Copying results back to local machine"
+	#rsync -a --progress nsc:"$(DESTINATION)/output_pthread$(version).txt" ./
 
 
 run_mpi_remote:
@@ -125,7 +125,6 @@ run_mpi_remote:
 	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
 	@test -n "$(n_tasks)" || (echo "n_tasks is not set"; exit 1)
 	@test -n "$(n_nodes)" || (echo "n_nodes is not set"; exit 1)
-	@test -n "$(n_cpus)" || (echo "n_cpus is not set"; exit 1)
 	@test -n "$(n_threads)" || (echo "n_threads is not set"; exit 1)
 
 	ssh nsc "mkdir -p $(DESTINATION)"
@@ -135,7 +134,7 @@ run_mpi_remote:
 
 	@echo "Compiling and running on nsc"
 	ssh nsc 'cd $(DESTINATION); make clean;module load OpenMPI/4.1.0-GCC-10.2.0; make compile_mpi n_threads=$(n_threads);'
-	ssh nsc 'module load OpenMPI/4.1.0-GCC-10.2.0; srun --mpi=pmix --reservation=fri --ntasks=$(n_tasks) -N$(n_nodes) --cpus-per-task=$(n_cpus) $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
+	ssh nsc 'module load OpenMPI/4.1.0-GCC-10.2.0; srun --mpi=pmix --reservation=fri --ntasks=$(n_tasks) -N$(n_nodes) --cpus-per-task=2 $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
 
-	@echo "Copying results back to local machine"
-	rsync -a --progress nsc:"$(DESTINATION)/output_mpi.txt" ./
+	#@echo "Copying results back to local machine"
+	#rsync -a --progress nsc:"$(DESTINATION)/output_mpi.txt" ./

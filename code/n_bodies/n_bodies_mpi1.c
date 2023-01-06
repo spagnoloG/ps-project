@@ -210,6 +210,8 @@ int main(int argc, char *argv[])
     FILE *fp;
     int N_BODIES, N_ITER;
 
+    MPI_Request request;
+
     if (argc != 3)
     {
         printf("Usage: %s <num_bodies> <num_iterations>\n", argv[0]);
@@ -273,7 +275,7 @@ int main(int argc, char *argv[])
         }
         Body *new_bodies = calculate_iteration(bodies, N_BODIES, displacement[myid], displacement[myid] + count[myid]);
         
-        MPI_Allgatherv(new_bodies, count[myid], mpi_body_type, bodies, count, displacement, mpi_body_type, MPI_COMM_WORLD);
+        MPI_IAllgatherv(new_bodies, countByte[myid], mpi_body_type, bodies, countByte, displacementByte, mpi_body_type, MPI_COMM_WORLD, &request);
         free(new_bodies);
     }
     gettimeofday(&tv2, NULL);
