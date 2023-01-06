@@ -20,7 +20,7 @@
 #define G 1                                 // gravitational contant
 #define DT 0.001                            // time derivative
 #define EPSILON 1                           // epsilon to avoid division by 0
-#define LOG_FILE "output_pthread.txt"       // logfile location
+#define LOG_FILE "output_pthread0.txt"       // logfile location
 
 struct timeval  tv1, tv2;
 struct winsize w;
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
     gettimeofday(&tv1, NULL);
     for(int i = 0; i < N_ITER; i ++) {
         
-        if(i % 10 == 0) {
+        if(i % 100 == 0) {
             print_boddies(bodies, N_BODIES, i, fp);
             progress_bar(i, N_ITER);
         }
