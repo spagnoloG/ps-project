@@ -7,7 +7,8 @@ MAIN=n_bodies
 MAIN_PTHREAD=n_bodies_pthread
 MAIN_MP=n_bodies_openmp
 MAIN_MPI=n_bodies_mpi1
-DESTINATION=/home/devel/tests
+USERNAME=$(shell ssh nsc "whoami")
+DESTINATION=/ceph/grid/home/$(USERNAME)/n_bodies
 
 all: $(MAIN) $(MAIN_PTHREAD)
 
@@ -66,39 +67,39 @@ run_default_remote:
 	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
 	@test -n "$(version)" || (echo "version is not set"; exit 1)
 
-	ssh hsrv_devel "mkdir -p $(DESTINATION)"
+	ssh nsc "mkdir -p $(DESTINATION)"
 
-	@echo "Copying files to hsrv_devel"
-	rsync -a --progress ./Makefile ./n_bodies$(version).c hsrv_devel:$(DESTINATION)
+	@echo "Copying files to nsc"
+	rsync -a --progress ./Makefile ./n_bodies$(version).c nsc:$(DESTINATION)
 
-	@echo "Compiling on hsrv_devel"
-	ssh hsrv_devel "cd $(DESTINATION) && make clean compile_default version=$(version)"
+	@echo "Compiling on nsc"
+	ssh nsc "cd $(DESTINATION) && make clean compile_default version=$(version)"
 
-	@echo "Running on hsrv_devel"
+	@echo "Running on nsc"
 
-	ssh hsrv_devel "cd $(DESTINATION) &&  ./$(MAIN)$(version).o $(n_bodies) $(n_steps)"
+	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --time=5:0:0 ./$(MAIN)$(version).o $(n_bodies) $(n_steps)"
 	
-	#@echo "Copying files from hsrv_devel"
-	#rsync -a --progress hsrv_devel:$(DESTINATION)/n_bodies$(version).txt ./
+	#@echo "Copying files from nsc"
+	#rsync -a --progress nsc:$(DESTINATION)/n_bodies$(version).txt ./
 
 run_mp_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
 	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
 	@test -n "$(n_threads)" || (echo "n_threads is not set"; exit 1)
 
-	ssh hsrv_devel "mkdir -p $(DESTINATION)"
+	ssh nsc "mkdir -p $(DESTINATION)"
 	
-	@echo "Copying files to hsrv_devel"
-	rsync -a --progress ./Makefile ./n_bodies_openmp.c hsrv_devel:$(DESTINATION)
+	@echo "Copying files to nsc"
+	rsync -a --progress ./Makefile ./n_bodies_openmp.c nsc:$(DESTINATION)
 
-	@echo "Compiling on hsrv_devel"
-	ssh hsrv_devel "cd $(DESTINATION) && make clean compile_mp n_threads=$(n_threads)"
+	@echo "Compiling on nsc"
+	ssh nsc "cd $(DESTINATION) && make clean compile_mp n_threads=$(n_threads)"
 
-	@echo "Running on hsrv_devel"
-	ssh hsrv_devel "cd $(DESTINATION) && ./$(MAIN_MP).o $(n_bodies) $(n_steps)"
+	@echo "Running on nsc"
+	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --cpus-per-task=$(n_threads) --mem-per-cpu=10G ./$(MAIN_MP).o $(n_bodies) $(n_steps)"
 	
 	@echo "Copying the results back"
-	#rsync -a --progress hsrv_devel:"$(DESTINATION)/output_mp.txt" ./
+	#rsync -a --progress nsc:"$(DESTINATION)/output_mp.txt" ./
 
 run_pthread_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
@@ -106,17 +107,17 @@ run_pthread_remote:
 	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
 	@test -n "$(version)" || (echo "version is not set"; exit 1)
 	
-	ssh hsrv_devel "mkdir -p $(DESTINATION)"
+	ssh nsc "mkdir -p $(DESTINATION)"
 	
-	@echo "Copying files to hsrv_devel"
-	rsync -a --progress ./Makefile ./n_bodies_pthread$(version).c  hsrv_devel:"$(DESTINATION)"
+	@echo "Copying files to nsc"
+	rsync -a --progress ./Makefile ./n_bodies_pthread$(version).c  nsc:"$(DESTINATION)"
 
-	@echo "Compiling and running on hsrv_devel"
-	ssh hsrv_devel "cd $(DESTINATION) && make clean compile_pthread version=$(version)"
-	ssh hsrv_devel "cd $(DESTINATION) &&  ./$(MAIN_PTHREAD)$(version).o $(n_bodies) $(n_steps) $(n_threads)"
+	@echo "Compiling and running on nsc"
+	ssh nsc "cd $(DESTINATION) && make clean compile_pthread version=$(version)"
+	ssh nsc "cd $(DESTINATION) && srun --reservation=fri --cpus-per-task=$(n_threads) --mem-per-cpu=10G ./$(MAIN_PTHREAD)$(version).o $(n_bodies) $(n_steps) $(n_threads)"
 	
 	#@echo "Copying results back to local machine"
-	#rsync -a --progress hsrv_devel:"$(DESTINATION)/output_pthread$(version).txt" ./
+	#rsync -a --progress nsc:"$(DESTINATION)/output_pthread$(version).txt" ./
 
 
 run_mpi_remote:
@@ -126,14 +127,14 @@ run_mpi_remote:
 	@test -n "$(n_nodes)" || (echo "n_nodes is not set"; exit 1)
 	@test -n "$(n_threads)" || (echo "n_threads is not set"; exit 1)
 
-	ssh hsrv_devel "mkdir -p $(DESTINATION)"
+	ssh nsc "mkdir -p $(DESTINATION)"
 
-	@echo "Copying files to hsrv_devel"
-	rsync -a --progress ./Makefile ./n_bodies_mpi1.c hsrv_devel:"$(DESTINATION)"
+	@echo "Copying files to nsc"
+	rsync -a --progress ./Makefile ./n_bodies_mpi1.c nsc:"$(DESTINATION)"
 
-	@echo "Compiling and running on hsrv_devel"
-	ssh hsrv_devel 'cd $(DESTINATION); make clean; make compile_mpi n_threads=$(n_threads);'
-	ssh hsrv_devel 'cd $(DESTINATION); $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
+	@echo "Compiling and running on nsc"
+	ssh nsc 'cd $(DESTINATION); make clean;module load OpenMPI/4.0.5-GCC-10.2.0; make compile_mpi n_threads=$(n_threads);'
+	ssh nsc 'module load OpenMPI/4.0.5-GCC-10.2.0; srun --mpi=pmix --reservation=fri --ntasks=$(n_tasks) --constraint=AMD -N$(n_nodes) --cpus-per-task=2 $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
 
 	#@echo "Copying results back to local machine"
-	#rsync -a --progress hsrv_devel:"$(DESTINATION)/output_mpi.txt" ./
+	#rsync -a --progress nsc:"$(DESTINATION)/output_mpi.txt" ./
