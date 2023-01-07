@@ -6,7 +6,7 @@ PTHREAD_CFLAGS=-pthread
 MAIN=n_bodies
 MAIN_PTHREAD=n_bodies_pthread
 MAIN_MP=n_bodies_openmp
-MAIN_MPI=n_bodies_mpi
+MAIN_MPI=n_bodies_mpi1
 USERNAME=$(shell ssh nsc "whoami")
 DESTINATION=/ceph/grid/home/$(USERNAME)/n_bodies
 
@@ -130,11 +130,11 @@ run_mpi_remote:
 	ssh nsc "mkdir -p $(DESTINATION)"
 
 	@echo "Copying files to nsc"
-	rsync -a --progress ./Makefile ./n_bodies_mpi.c nsc:"$(DESTINATION)"
+	rsync -a --progress ./Makefile ./n_bodies_mpi1.c nsc:"$(DESTINATION)"
 
 	@echo "Compiling and running on nsc"
-	ssh nsc 'cd $(DESTINATION); make clean;module load OpenMPI/4.1.0-GCC-10.2.0; make compile_mpi n_threads=$(n_threads);'
-	ssh nsc 'module load OpenMPI/4.1.0-GCC-10.2.0; srun --mpi=pmix --reservation=fri --ntasks=$(n_tasks) -N$(n_nodes) --cpus-per-task=2 $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
+	ssh nsc 'cd $(DESTINATION); make clean;module load OpenMPI/4.0.5-GCC-10.2.0; make compile_mpi n_threads=$(n_threads);'
+	ssh nsc 'module load OpenMPI/4.0.5-GCC-10.2.0; srun --mpi=pmix --reservation=fri --ntasks=$(n_tasks) --constraint=AMD -N$(n_nodes) --cpus-per-task=2 $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
 
 	#@echo "Copying results back to local machine"
 	#rsync -a --progress nsc:"$(DESTINATION)/output_mpi.txt" ./

@@ -19,10 +19,10 @@
 #include <mpi.h>
 #include <stddef.h>
 
-#define G 1                   // gravitational contant
-#define DT 0.001              // time derivative
-#define EPSILON 1             // epsilon to avoid division by 0
-#define LOG_FILE "n_bodies_mpi" // logfile location
+#define G 1                         // gravitational contant
+#define DT 0.001                    // time derivative
+#define EPSILON 1                   // epsilon to avoid division by 0
+#define LOG_FILE "n_bodies_mpi1.txt" // logfile location
 
 struct timeval tv1, tv2;
 struct winsize w;
@@ -37,6 +37,12 @@ typedef struct
     float vy;
     float vz;
 } Body;
+
+typedef struct  {
+    float Fx;
+    float Fy;
+    float Fz;
+} Force;
 
 /*
  * error handling
@@ -138,10 +144,10 @@ Body *generate_initial_population(Body *bodies, int n, float max_mass, float max
     for (int i = 0; i < n; i++)
     {
 
-        bodies[i].mass = (float)rand() / RAND_MAX * max_mass;
-        bodies[i].x = (float)rand() / RAND_MAX * max_pos;
-        bodies[i].y = (float)rand() / RAND_MAX * max_pos;
-        bodies[i].z = (float)rand() / RAND_MAX * max_pos;
+        bodies[i].mass = (float)rand() / (float) RAND_MAX * max_mass;
+        bodies[i].x = (float)rand() / (float) RAND_MAX * max_pos;
+        bodies[i].y = (float)rand() / (float) RAND_MAX * max_pos;
+        bodies[i].z = (float)rand() /(float) RAND_MAX * max_pos;
         if (i == 0)
         {
             bodies[i].vx = 0;
@@ -150,12 +156,65 @@ Body *generate_initial_population(Body *bodies, int n, float max_mass, float max
         }
         else
         {
-            bodies[i].vx = (float)rand() / RAND_MAX * max_vel;
-            bodies[i].vy = (float)rand() / RAND_MAX * max_vel;
-            bodies[i].vz = (float)rand() / RAND_MAX * max_vel;
+            bodies[i].vx = (float)rand() / (float) RAND_MAX * max_vel;
+            bodies[i].vy = (float)rand() / (float) RAND_MAX * max_vel;
+            bodies[i].vz = (float)rand() / (float) RAND_MAX * max_vel;
         }
     }
     return bodies;
+}
+
+
+void compute_forces(Force *forces, Body *new_bodies, int start, int end){
+    #pragma omp parallel for schedule(dynamic, 1)
+    for(int i = start; i < end; i++) {
+        forces[i - start].Fx = 0;
+        forces[i - start].Fy = 0;
+        forces[i - start].Fz = 0;
+        for(int j = start; j <  end; j++) {
+            float rx = new_bodies[i - start].x - new_bodies[j - start].x;
+            float ry = new_bodies[i - start].y - new_bodies[j - start].y;
+            float rz = new_bodies[i - start].z - new_bodies[j - start].z; 
+            float distance = sqrt(pow(rx,2) + pow(ry,2) + pow(rz,2));
+            
+            forces[i - start].Fx += new_bodies[i - start].mass * rx / (pow(distance , 3)+ EPSILON);
+            forces[i - start].Fy += new_bodies[i - start].mass * ry / (pow(distance , 3)+ EPSILON);
+            forces[i - start].Fz += new_bodies[i - start].mass * rz / (pow(distance , 3)+ EPSILON);
+        }
+    }
+}
+
+void compute_partial_iteration(Body *bodies, Force *forces, Body *new_bodies,  int num_bodies, int start, int end){
+    #pragma omp parallel for schedule(dynamic, 1)
+    for(int i = start; i < end; i++) {
+        for(int j = 0; j < num_bodies && (j < start || j > end); j++) {
+            float rx = bodies[j].x - bodies[i].x;
+            float ry = bodies[j].y - bodies[i].y;
+            float rz = bodies[j].z - bodies[i].z;
+            float distance = sqrt(pow(rx, 2) + pow(ry, 2) + pow(rz, 2));
+
+            forces[i - start].Fx += bodies[j].mass * rx / (pow(distance, 3) + EPSILON);
+            forces[i - start].Fy += bodies[j].mass * ry / (pow(distance, 3) + EPSILON);
+            forces[i - start].Fz += bodies[j].mass * rz / (pow(distance, 3) + EPSILON);
+        }
+
+        forces[i - start].Fx *= bodies[i].mass * G;
+        forces[i - start].Fy *= bodies[i].mass * G;
+        forces[i - start].Fz *= bodies[i].mass * G;
+
+        float ax = forces[i - start].Fx / bodies[i].mass;
+        float ay = forces[i - start].Fy / bodies[i].mass;
+        float az = forces[i - start].Fz / bodies[i].mass;
+
+        new_bodies[i - start].mass = bodies[i].mass;
+        new_bodies[i - start].x = bodies[i].x + bodies[i].vx * DT + 0.5 * ax * pow(DT, 2);
+        new_bodies[i - start].y = bodies[i].y + bodies[i].vy * DT + 0.5 * ay * pow(DT, 2);
+        new_bodies[i - start].z = bodies[i].z + bodies[i].vz * DT + 0.5 * az * pow(DT, 2);
+
+        new_bodies[i - start].vx = bodies[i].vx + ax * DT;
+        new_bodies[i - start].vy = bodies[i].vy + ay * DT;
+        new_bodies[i - start].vz = bodies[i].vz + az * DT;
+    }
 }
 
 Body *calculate_iteration(Body *bodies, int num_bodies, int start, int end)
@@ -209,8 +268,20 @@ int main(int argc, char *argv[])
 {
     FILE *fp;
     int N_BODIES, N_ITER;
-
+    int myid, size;
     MPI_Request request;
+
+    printf("start init\n");
+    fflush(stdout);
+
+    MPI_Init(&argc, &argv);
+    printf("init done\n");
+    fflush(stdout);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    printf("init MPI ok\n");
+    fflush(stdout);
 
     if (argc != 3)
     {
@@ -218,23 +289,23 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    #pragma omp parallel
-    #pragma omp master
-
     N_BODIES = atoi(argv[1]);
     N_ITER = atoi(argv[2]);
-    int myid, size;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    printf("args parsed\n");
+    fflush(stdout);
+
     int *displacement = (int *)malloc(sizeof(int) * size);
     int *displacementByte = (int *)malloc(sizeof(int) * size);
     int *count = (int *)malloc(sizeof(int) * size);
     int *countByte = (int *)malloc(sizeof(int) * size);
     Body *bodies = (Body *)malloc(sizeof(Body) * N_BODIES);
-    // float *recv = (float *)malloc(count[myid] * sizeof(float));
 
+    printf("end init\n");
+    fflush(stdout);
     count_displacement(count, countByte, displacement, displacementByte, size, N_BODIES);
+    printf("counted\n");
+    fflush(stdout);
 
     fp = fopen(LOG_FILE, "wa");
 
@@ -260,30 +331,68 @@ int main(int argc, char *argv[])
 
     MPI_Type_create_struct(n_items, blocklengths, offsets, types, &mpi_body_type);
     MPI_Type_commit(&mpi_body_type);
+    // MPI DATATYPE
 
-    
     MPI_Bcast(bodies, N_BODIES, mpi_body_type, 0, MPI_COMM_WORLD);
-    
-    fflush(fp);
+ 
     gettimeofday(&tv1, NULL);
+    Body *new_bodies;
+    Force *my_forces;
+    printf("h1\n");
+    fflush(stdout);
+    #pragma omp parallel
+    #pragma omp master
     for (int i = 0; i < N_ITER; i++)
     {
-        if (i % 100 == 0 && myid == 0)
-        {
-                fflush(stdout);
-                print_boddies(bodies, N_BODIES, i, fp);
+        //if (i % 1000 == 0 && myid == 0)
+        //{
+        //        print_boddies(bodies, N_BODIES, i, fp);
+        //}
+
+        if( i == 0){
+            printf("h2\n");
+            fflush(stdout);
+            new_bodies = calculate_iteration(bodies, N_BODIES, displacement[myid], displacement[myid] + count[myid]);
+            my_forces = malloc(sizeof(Force) * count[myid]);
+            print_boddies(new_bodies, count[myid], i, fp);
+            printf("h3\n");
+            fflush(stdout);
         }
-        Body *new_bodies = calculate_iteration(bodies, N_BODIES, displacement[myid], displacement[myid] + count[myid]);
-        
-        MPI_IAllgatherv(new_bodies, countByte[myid], mpi_body_type, bodies, countByte, displacementByte, mpi_body_type, MPI_COMM_WORLD, &request);
-        free(new_bodies);
+        else { // compute partial results out of new_bodies
+            printf("h4\n");
+            fflush(stdout);
+            compute_forces(my_forces, new_bodies, count[myid], N_BODIES);
+            printf("h5\n");
+            fflush(stdout);
+            // test if  allgather request is done
+            MPI_Wait(&request, MPI_STATUS_IGNORE);
+            printf("h6\n");
+            fflush(stdout);
+            // compute new bodies
+            compute_partial_iteration(bodies, my_forces, new_bodies, N_BODIES, displacement[myid], displacement[myid] + count[myid]);
+            printf("h7\n");
+            fflush(stdout);
+        }
+        printf("beforegatherv\n");
+        fflush(stdout);
+        // print count
+        for(int i = 0; i < size; i++){
+            printf("count[%d] = %d\n", i, count[i]);
+        }
+        // print displacement 
+        for(int i = 0; i < size; i++){
+            printf("displacement[%d] = %d\n", i, displacement[i]);
+        }
+
+        MPI_Allgatherv(new_bodies, count[myid], mpi_body_type, bodies, count, displacement, mpi_body_type, MPI_COMM_WORLD);
+        printf("haftergatherv\n");
+        fflush(stdout);
     }
     gettimeofday(&tv2, NULL);
 
     printf("CPU: %f seconds\n", (float)(tv2.tv_usec - tv1.tv_usec) / 1000000 +
                                     (float)(tv2.tv_sec - tv1.tv_sec));
 
-    // cleanup(bodies, N_BODIES);
     fclose(fp);
 
     MPI_Finalize();

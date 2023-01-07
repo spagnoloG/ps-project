@@ -138,10 +138,10 @@ Body *generate_initial_population(Body *bodies, int n, float max_mass, float max
     for (int i = 0; i < n; i++)
     {
 
-        bodies[i].mass = (float)rand() / RAND_MAX * max_mass;
-        bodies[i].x = (float)rand() / RAND_MAX * max_pos;
-        bodies[i].y = (float)rand() / RAND_MAX * max_pos;
-        bodies[i].z = (float)rand() / RAND_MAX * max_pos;
+        bodies[i].mass = (float)rand() / (float) RAND_MAX * max_mass;
+        bodies[i].x = (float)rand() / (float) RAND_MAX * max_pos;
+        bodies[i].y = (float)rand() / (float) RAND_MAX * max_pos;
+        bodies[i].z = (float)rand() / (float) RAND_MAX * max_pos;
         if (i == 0)
         {
             bodies[i].vx = 0;
@@ -150,9 +150,9 @@ Body *generate_initial_population(Body *bodies, int n, float max_mass, float max
         }
         else
         {
-            bodies[i].vx = (float)rand() / RAND_MAX * max_vel;
-            bodies[i].vy = (float)rand() / RAND_MAX * max_vel;
-            bodies[i].vz = (float)rand() / RAND_MAX * max_vel;
+            bodies[i].vx = (float)rand() / (float) RAND_MAX * max_vel;
+            bodies[i].vy = (float)rand() / (float) RAND_MAX * max_vel;
+            bodies[i].vz = (float)rand() / (float) RAND_MAX * max_vel;
         }
     }
     return bodies;
