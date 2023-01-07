@@ -266,11 +266,7 @@ int main(int argc, char *argv[])
     gettimeofday(&tv1, NULL);
     for (int i = 0; i < N_ITER; i++)
     {
-        if (i % 100 == 0 && myid == 0)
-        {
-                fflush(stdout);
-                print_boddies(bodies, N_BODIES, i, fp);
-        }
+        
         Body *new_bodies = calculate_iteration(bodies, N_BODIES, displacement[myid], displacement[myid] + count[myid]);
         
         MPI_Allgatherv(new_bodies, count[myid], mpi_body_type, bodies, count, displacement, mpi_body_type, MPI_COMM_WORLD);

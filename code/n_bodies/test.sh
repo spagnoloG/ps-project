@@ -29,7 +29,8 @@ for STEPS in "${N_STEPS[@]}"; do
 done
 
 ## PTHREAD ##
-N_BODIES=(100 1000 10000)
+N_BODIES=(100 1000 10000 100000 1000000)
+N_THREADS=(2 4 8 16 32)
 # Loop through STEPS
 for STEPS in "${N_STEPS[@]}"; do
     # Loop through BODIES

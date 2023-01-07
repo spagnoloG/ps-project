@@ -191,9 +191,6 @@ int main(int argc, char *argv[]) {
 
     gettimeofday(&tv1, NULL);
     for(int i = 0; i < N_ITER; i ++) {
-        if (i % 100 == 0) {
-            print_boddies(bodies, N_BODIES, i, fp);
-        }
         bodies = calculate_iteration(bodies, N_BODIES);
     }
     gettimeofday(&tv2, NULL);

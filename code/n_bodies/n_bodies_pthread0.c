@@ -224,10 +224,6 @@ int main(int argc, char *argv[]) {
 
     gettimeofday(&tv1, NULL);
     for(int i = 0; i < N_ITER; i ++) {
-        
-        if(i % 100 == 0) {
-            print_boddies(bodies, N_BODIES, i, fp);
-        }
 
         // Compute iteration
         for(int j = 0; j < N_THREADS; j++)

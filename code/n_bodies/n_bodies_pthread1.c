@@ -203,9 +203,6 @@ void *parallel_iteration(void *arg) {
 
         pthread_barrier_wait(&barrier);
 
-        if(thread_descriptor->tid == 0 && i % 100 == 0) {
-            print_boddies(master_descriptor.bodies, master_descriptor.n_bodies, i, fp);
-        }
     }
 
 

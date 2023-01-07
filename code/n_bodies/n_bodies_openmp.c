@@ -194,10 +194,7 @@ int main(int argc, char *argv[]) {
     bodies = generate_initial_population(N_BODIES, 30, 3, 3);
 
     gettimeofday(&tv1, NULL);
-    for(int i = 0; i < N_ITER; i ++) {
-        if (i % 100 == 0) {
-            print_boddies(bodies, N_BODIES, i, fp);
-        }
+    for(int i = 0; i < N_ITER; i ++) { 
         bodies = calculate_iteration(bodies, N_BODIES);
     }
     gettimeofday(&tv2, NULL);
