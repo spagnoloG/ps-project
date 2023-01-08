@@ -85,7 +85,7 @@ for STEPS in "${N_STEPS[@]}"; do
             # Loop through N_NODEs
              for THREADS in "${N_THREADS[@]}"; do
                 # Check if sum of threads and procs is equal to 24
-                if [ $((PROC + THREADS)) -gt 24 ]; then
+                if [ $((PROC + (PROC * THREADS))) -gt 24 ]; then
                     continue
                 fi
                 # Loop through THREADS
