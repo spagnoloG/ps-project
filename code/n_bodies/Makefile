@@ -34,15 +34,17 @@ compile_mpi:
 	@test -n "$(version)" || (echo "Please specify version"; exit 1)
 	@test -n "$(n_threads)" || (echo "Please specify n_threads" && exit 1)
 
-	$(CC_MPI) $(CFLAGS) $(MPI_FLAGS) -DOMP_NUM_THREADS=$(n_threads) $(MAIN_MPI)$(version).c -o $(MAIN_MPI).o
+	$(CC_MPI) $(CFLAGS) $(MPI_FLAGS) -DOMP_NUM_THREADS=$(n_threads) $(MAIN_MPI)$(version).c -o $(MAIN_MPI)$(version).o
 
 compile_mp:
+	@test -n "$(version)" || (echo "Please specify version"; exit 1)
 	@test -n "$(n_threads)" || (echo "Please specify n_threads" && exit 1)
-	$(CC) $(CFLAGS) $(CFLAGS) $(MPI_FLAGS) -DOMP_NUM_THREADS=$(n_threads) $(MAIN_MP).c -o $(MAIN_MP).o
+
+	$(CC) $(CFLAGS) $(CFLAGS) $(MPI_FLAGS) -DOMP_NUM_THREADS=$(n_threads) $(MAIN_MP)$(version).c -o $(MAIN_MP)$(version).o
 
 clean: 
 	rm *.o || true
-	rm *.txt || true
+	#rm *.txt || true
 
 run_local_main:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
@@ -87,17 +89,18 @@ run_mp_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
 	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
 	@test -n "$(n_threads)" || (echo "n_threads is not set"; exit 1)
+	@test -n "$(version)" || (echo "version is not set"; exit 1)
 
 	ssh hsrv_devel "mkdir -p $(DESTINATION)"
 	
 	@echo "Copying files to hsrv_devel"
-	rsync -a --progress ./Makefile ./n_bodies_openmp.c hsrv_devel:$(DESTINATION)
+	rsync -a --progress ./Makefile ./n_bodies_openmp$(version).c hsrv_devel:$(DESTINATION)
 
 	@echo "Compiling on hsrv_devel"
-	ssh hsrv_devel "cd $(DESTINATION) && make clean compile_mp n_threads=$(n_threads)"
+	ssh hsrv_devel "cd $(DESTINATION) && make clean compile_mp n_threads=$(n_threads) version=$(version)"
 
 	@echo "Running on hsrv_devel"
-	ssh hsrv_devel "cd $(DESTINATION) && ./$(MAIN_MP).o $(n_bodies) $(n_steps)"
+	ssh hsrv_devel "cd $(DESTINATION) && OMP_NUM_THREADS=$(n_threads) ./$(MAIN_MP)$(version).o $(n_bodies) $(n_steps)"
 	
 	@echo "Copying the results back"
 	#rsync -a --progress hsrv_devel:"$(DESTINATION)/output_mp.txt" ./
@@ -124,19 +127,19 @@ run_pthread_remote:
 run_mpi_remote:
 	@test -n "$(n_bodies)" || (echo "n_bodies is not set"; exit 1)
 	@test -n "$(n_steps)" || (echo "n_steps is not set"; exit 1)
-	@test -n "$(n_tasks)" || (echo "n_tasks is not set"; exit 1)
-	@test -n "$(n_nodes)" || (echo "n_nodes is not set"; exit 1)
+	@test -n "$(n_proc)" || (echo "n_proc is not set"; exit 1)
+	#@test -n "$(n_nodes)" || (echo "n_nodes is not set"; exit 1)
 	@test -n "$(n_threads)" || (echo "n_threads is not set"; exit 1)
 	@test -n "$(version)" || (echo "version is not set"; exit 1)
 
 	ssh hsrv_devel "mkdir -p $(DESTINATION)"
 
 	@echo "Copying files to hsrv_devel"
-	rsync -a --progress ./Makefile ./n_bodies_mpi1.c hsrv_devel:"$(DESTINATION)"
+	rsync -a --progress ./Makefile ./n_bodies_mpi$(version).c hsrv_devel:"$(DESTINATION)"
 
 	@echo "Compiling and running on hsrv_devel"
 	ssh hsrv_devel 'cd $(DESTINATION); make clean; make compile_mpi n_threads=$(n_threads) version=$(version);'
-	ssh hsrv_devel 'cd $(DESTINATION); $(DESTINATION)/$(MAIN_MPI).o $(n_bodies) $(n_steps)'
+	ssh hsrv_devel 'cd $(DESTINATION); OMP_NUM_THREADS=$(n_threads) mpirun -np $(n_proc) $(DESTINATION)/$(MAIN_MPI)$(version).o $(n_bodies) $(n_steps)'
 
 	#@echo "Copying results back to local machine"
 	#rsync -a --progress hsrv_devel:"$(DESTINATION)/output_mpi.txt" ./

@@ -165,7 +165,7 @@ Body *calculate_iteration(Body *bodies, int num_bodies, int start, int end)
     if (new_bodies == NULL)
         throw_err(__LINE__, 1);
     int i;
-    #pragma omp parallel for schedule(dynamic, 1)
+    #pragma omp parallel for schedule(dynamic, 10)
     for (i = start; i < end; i++)
     {
 

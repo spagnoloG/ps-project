@@ -139,7 +139,7 @@ Body *generate_initial_population(Body *bodies, int n, float max_mass, float max
 
 
 void compute_forces(Force *forces, Body *new_bodies, int start, int end){
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 10)
     for(int i = start; i < end; i++) {
         forces[i - start].Fx = 0;
         forces[i - start].Fy = 0;
@@ -158,7 +158,7 @@ void compute_forces(Force *forces, Body *new_bodies, int start, int end){
 }
 
 void compute_partial_iteration(Body *bodies, Force *forces, Body *new_bodies,  int num_bodies, int start, int end){
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 10)
     for(int i = start; i < end; i++) {
         for(int j = 0; j < num_bodies && (j < start || j > end); j++) {
             float rx = bodies[j].x - bodies[i].x;
@@ -198,7 +198,7 @@ Body *calculate_iteration(Body *bodies, int num_bodies, int start, int end)
     if (new_bodies == NULL)
         throw_err(__LINE__, 1);
     int i;
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 10)
     for (i = start; i < end; i++)
     {
 
