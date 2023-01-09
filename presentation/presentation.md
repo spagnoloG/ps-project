@@ -14,7 +14,7 @@ Za določitev premika in spremembe hitrosti telesa je potrebno izračunati razda
 
 # Sekvenčni algoritem
 
-Najprej izpeljimo skevenčni algoritem, ki bo služil kot osnova za vse paralelizacije.  
+Najprej izpeljimo sekvenčni algoritem, ki bo služil kot osnova za vse paralelizacije.  
 
 Najprej ugotovimo, da bomo morali v vsaki različici programa vse iteracije (ena iteracija pomeni premik v eni časovni enoti) izvajati eno za drugo. Za izračun spremembe stanja vsakega telesa moramo namreč poznati vsa stanja teles v prejšnji iteraciji.  
 
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
 ## Izračun naslednje iteracije  
 
-Izračun naslednje iteracije delamo v *for* zanki za vsako telo (indeks i). Znotraj izračuna spremembe stanja za vsako telo, delo razdelimo v še eno zanko - ta računa sile, s katerimi vsako drugo telo deluje na trenutno telo.  
+Izračun naslednje iteracije delamo v *for* zanki za vsako telo (indeks i). Znotraj izračuna spremembe stanja za vsako telo delo razdelimo v še eno zanko - ta računa sile, s katerimi vsako drugo telo deluje na trenutno telo.  
 
 
 ```c
@@ -124,9 +124,9 @@ Body **calculate_iteration(Body** bodies, int num_bodies) {
 
 <div style="page-break-after: always;"></div>  
 
-# Sekvenčni algortiem - drugič
+# Sekvenčni algoritem - drugič
 
-Ker za sile med telesi velja Fij = -Fji, lahko naredimo pol manj izračnov, vendar za to potrenujemo skoraj n-krat več prostora.
+Ker za sile med telesi velja Fij = -Fji, lahko naredimo pol manj izračunov, vendar za to potrebujemo skoraj n-krat več prostora.
 
 Program poteka podobno, le da moramo na začetku alocirati še matriko, ki bo držala vse sile med telesi:
 
@@ -866,9 +866,62 @@ ts = 123.58s
 Prvi način MPI je boljši pri manj procesih in nitih, takoj, ko dosežemo skupno 16 niti, ki se izvajajo na vsaj 2 procesih, pa se bolje obnese drugi način.
 
 
+## Paralelno pisanje v datoteko
+
+V zgornjih MPI implementacijah izgubljamo dragoceni čas na ničtem procesu, ki zapisuje v datoteko. Zato smo pripravili še posebno implementacijo, ki poskrbi, da vsak proces sam zapisuje v skupno datoteko.
+
+```c
+int main(int argc, char *argv[])
+{
+    
+    ...
+
+    #pragma omp parallel
+    #pragma omp master
+
+    ...
+
+    // MPI DATATYPE
+    const int n_items = 7;
+    int blocklengths[7] = {1, 1, 1, 1, 1, 1, 1};
+    MPI_Datatype types[7] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
+    MPI_Datatype mpi_body_type;
+    MPI_Aint offsets[7];
+
+    offsets[0] = offsetof(Body, mass);
+    offsets[1] = offsetof(Body, x);
+    offsets[2] = offsetof(Body, y);
+    offsets[3] = offsetof(Body, z);
+    offsets[4] = offsetof(Body, vx);
+    offsets[5] = offsetof(Body, vy);
+    offsets[6] = offsetof(Body, vz);
+
+    MPI_Type_create_struct(n_items, blocklengths, offsets, types, &mpi_body_type);
+    MPI_Type_commit(&mpi_body_type);
+    int s;
+    MPI_Type_size(mpi_body_type, &s);
+    MPI_Bcast(bodies, N_BODIES, mpi_body_type, 0, MPI_COMM_WORLD);
+    MPI_File_set_view(file, 0, mpi_body_type, mpi_body_type, "native", MPI_INFO_NULL);
+    gettimeofday(&tv1, NULL);
+    for (int i = 0; i < N_ITER; i++)
+    {
+
+        Body *new_bodies = calculate_iteration(bodies, N_BODIES, displacement[myid], displacement[myid] + count[myid]);
+        MPI_Allgatherv(new_bodies, count[myid], mpi_body_type, bodies, count, displacement, mpi_body_type, MPI_COMM_WORLD);
+        MPI_Offset offset = i * N_BODIES + displacement[myid];
+        MPI_File_write_at(file, offset, new_bodies, count[myid], mpi_body_type, MPI_STATUS_IGNORE);
+        free(new_bodies);
+    }
+    
+    ...
+
+}
+```
+
+
 # Primerjava paralelizacij
 
-Primerjajmo najboljše parametre za vsako tehnologijo paralelizacije pri 10000 telsih in 100 iteracijah:
+Primerjajmo najboljše parametre za vsako tehnologijo paralelizacije pri 10000 telesih in 100 iteracijah:
 
 ```
 ts = 126.47
