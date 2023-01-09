@@ -868,3 +868,14 @@ Prvi način MPI je boljši pri manj procesih in nitih, takoj, ko dosežemo skupn
 
 # Primerjava paralelizacij
 
+Primerjajmo najboljše parametre za vsako tehnologijo paralelizacije pri 10000 telsih in 100 iteracijah:
+
+```
+ts = 126.47
+```
+
+| Tehnologija | Št. procesov | Št. niti na proces | Čas | Pohitritev | Učinkovitost |
+| --- | --- | --- | --- | --- | --- |
+| Pthreads | 1 | 16 | 11.35 | 11.14 | 0.70 |
+| OpenMP | 1 | 16 | 18.70 | 6.76 | 0.42 |
+| MPI | 8 | 2 | 9.756 | 12.97 | 0.81 |
